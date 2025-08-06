@@ -29,83 +29,116 @@ from forecast_manager import ForecasterEvaluation, \
     ManagedEvaluator, \
     ForecastManager
 
-# load data from Silver
-silver_path = Path(__file__).parent / Path('SILVER')
+def get_all_item_numbers():
+    silver_path = Path(__file__).parent / Path('SILVER')
 
-orders_received = pd.read_csv(silver_path / Path('orders_received.csv'))
-june_order_fc = pd.read_csv(silver_path / Path('June order FC.csv'))
-item_remap = pd.read_csv(silver_path / Path('2024 Item remap table.csv'))
+    orders_received = pd.read_csv(silver_path / Path('orders_received.csv'))
+    june_order_fc = pd.read_csv(silver_path / Path('June order FC.csv'))
+    item_remap = pd.read_csv(silver_path / Path('2024 Item remap table.csv'))
 
-# Convert the column in-place
-orders_received['BookingDate'] = pd.to_datetime(
-    orders_received['BookingDate'],
-    errors='raise'    # will throw if any non-parseable entries exist
-)
+    # Convert the column in-place
+    orders_received['BookingDate'] = pd.to_datetime(
+        orders_received['BookingDate'],
+        errors='raise'  # will throw if any non-parseable entries exist
+    )
 
-# build monthly quantity series for all item_numbers
+    # build monthly quantity series for all item_numbers
 
-monthly_item_sales_quantity = pd.pivot_table(
-    orders_received,
-    index='ItemNumber',
-    columns=orders_received['BookingDate'].dt.to_period('M'),
-    values='Quantity',
-    aggfunc='sum',
-    fill_value=0
-)
-monthly_item_sales_quantity.index.name = 'ItemNumber'
+    monthly_item_sales_quantity = pd.pivot_table(
+        orders_received,
+        index='ItemNumber',
+        columns=orders_received['BookingDate'].dt.to_period('M'),
+        values='Quantity',
+        aggfunc='sum',
+        fill_value=0
+    )
+    monthly_item_sales_quantity.index.name = 'ItemNumber'
 
-all_item_numbers = list(monthly_item_sales_quantity.index)
-all_item_numbers.sort()
+    all_item_numbers = list(monthly_item_sales_quantity.index)
+    all_item_numbers.sort()
+
+    return all_item_numbers
 
 
-# from Joe's spreadsheet
-item_classes = [
-    "CART", "CHOC", "CPU", "CRAN", "DEIC", "EGST", "ENCM", "ESRV", "FSRV",
-    "FUEL", "HPU", "HTAR", "JACK", "JP", "KIT", "LIFT", "LSRV", "MISC",
-    "NOIN", "NSRV", "OSRV", "PART", "PLAT", "PWTR", "RAM", "RMA", "SAIR",
-    "SLNG", "SPCH", "STND", "SVC", "TAIL", "TBAR", "TIRE", "TOOL", "TUG", "SVCP",
-    "", "JP"
-]
 
-segment_descriptions = [
-    "Kits & Parts",
-    "Jacks & Stands",
-    "Hydraulic Systems",
-    "Other",
-    "Tugs",
-    "Servicing Products",
-    "Towbars",
-    "JetPorter",
-    "RAM Air Turbines",
-    "Electrical Systems",
-    "N2O2 Systems",
-    "Engine Comp Washers",
-    "Work Platforms"
-]
+def gold_pipeline(item_numbers, months_ahead_to_forecast = 3):
+    # load data from Silver
+    silver_path = Path(__file__).parent / Path('SILVER')
 
-# map from segment descriptions in Joe's spreadsheet to ItemClasses in orders_received
-segment_to_item_classes = {
-    'Other': [
-        'CART', 'CHOC', 'CPU', 'CRAN', 'DEIC', 'HTAR', 'LIFT', 'MISC',
-        'NOIN', 'PWTR', 'RMA', 'SAIR', 'SLNG', 'SPCH', 'STND', 'SVC',
-        'TOOL', 'SVCP', '', "JP"
-    ],
-    'Engine Comp Washers': ['ENCM'],
-    'Electrical Systems': ['ESRV'],
-    'Servicing Products': ['FSRV', 'FUEL', 'LSRV', 'TIRE'],
-    'Hydraulic Systems': ['HPU'],
-    'Jacks & Stands': ['JACK', 'TAIL'],
-    'Kits & Parts': ['KIT', 'PART'],
-    'N2O2 Systems': ['NSRV', 'OSRV'],
-    'Work Platforms': ['PLAT'],
-    'RAM Air Turbines': ['RAM'],
-    'Towbars': ['TBAR'],
-    'Tugs': ['TUG']
-}
+    orders_received = pd.read_csv(silver_path / Path('orders_received.csv'))
+    june_order_fc = pd.read_csv(silver_path / Path('June order FC.csv'))
+    item_remap = pd.read_csv(silver_path / Path('2024 Item remap table.csv'))
 
-forecast_specs = pd.DataFrame(index = all_item_numbers, columns = ['forecaster_class','forecaster_params', 'test_RMSE'])
+    # Convert the column in-place
+    orders_received['BookingDate'] = pd.to_datetime(
+        orders_received['BookingDate'],
+        errors='raise'    # will throw if any non-parseable entries exist
+    )
 
-def get_predictions(item_numbers, months_ahead_to_forecast = 3):
+    # build monthly quantity series for all item_numbers
+
+    monthly_item_sales_quantity = pd.pivot_table(
+        orders_received,
+        index='ItemNumber',
+        columns=orders_received['BookingDate'].dt.to_period('M'),
+        values='Quantity',
+        aggfunc='sum',
+        fill_value=0
+    )
+    monthly_item_sales_quantity.index.name = 'ItemNumber'
+
+    all_item_numbers = list(monthly_item_sales_quantity.index)
+    all_item_numbers.sort()
+
+
+    # from Joe's spreadsheet
+    item_classes = [
+        "CART", "CHOC", "CPU", "CRAN", "DEIC", "EGST", "ENCM", "ESRV", "FSRV",
+        "FUEL", "HPU", "HTAR", "JACK", "JP", "KIT", "LIFT", "LSRV", "MISC",
+        "NOIN", "NSRV", "OSRV", "PART", "PLAT", "PWTR", "RAM", "RMA", "SAIR",
+        "SLNG", "SPCH", "STND", "SVC", "TAIL", "TBAR", "TIRE", "TOOL", "TUG", "SVCP",
+        "", "JP"
+    ]
+
+    segment_descriptions = [
+        "Kits & Parts",
+        "Jacks & Stands",
+        "Hydraulic Systems",
+        "Other",
+        "Tugs",
+        "Servicing Products",
+        "Towbars",
+        "JetPorter",
+        "RAM Air Turbines",
+        "Electrical Systems",
+        "N2O2 Systems",
+        "Engine Comp Washers",
+        "Work Platforms"
+    ]
+
+    # map from segment descriptions in Joe's spreadsheet to ItemClasses in orders_received
+    segment_to_item_classes = {
+        'Other': [
+            'CART', 'CHOC', 'CPU', 'CRAN', 'DEIC', 'HTAR', 'LIFT', 'MISC',
+            'NOIN', 'PWTR', 'RMA', 'SAIR', 'SLNG', 'SPCH', 'STND', 'SVC',
+            'TOOL', 'SVCP', '', "JP"
+        ],
+        'Engine Comp Washers': ['ENCM'],
+        'Electrical Systems': ['ESRV'],
+        'Servicing Products': ['FSRV', 'FUEL', 'LSRV', 'TIRE'],
+        'Hydraulic Systems': ['HPU'],
+        'Jacks & Stands': ['JACK', 'TAIL'],
+        'Kits & Parts': ['KIT', 'PART'],
+        'N2O2 Systems': ['NSRV', 'OSRV'],
+        'Work Platforms': ['PLAT'],
+        'RAM Air Turbines': ['RAM'],
+        'Towbars': ['TBAR'],
+        'Tugs': ['TUG']
+    }
+
+    forecast_specs = pd.DataFrame(index = all_item_numbers, columns = ['forecaster_class','forecaster_params', 'test_RMSE'])
+
+
     start = pd.Timestamp.today().to_period('M')
 
     # forecast horizon so many months in the future

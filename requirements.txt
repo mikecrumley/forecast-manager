@@ -1,0 +1,9 @@
+sktime>=0.37.0
+statsmodels>=0.14.0
+pmdarima
+prophet
+pandas
+numpy<2      # important, pmdarmia won't work without
+tqdm
+fsspec
+scipy<1.16    # important, pmdarmia won't work without

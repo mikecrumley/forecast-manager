@@ -9,6 +9,14 @@ class ForecastViewer:
         self.orders_received_df = orders_received_df.copy()
         self.predictions_df = predictions_df.copy()
 
+        self.predictions_df.index = self.predictions_df['ItemNumber']
+        del self.predictions_df['ItemNumber']
+        # del self.predictions_df['forecaster_class']
+        # del self.predictions_df['forecaster_params']
+        # del self.predictions_df['test_RMSE']
+
+        self.predictions_df.columns = pd.PeriodIndex(self.predictions_df.columns, freq="M")
+
         # Convert the column in-place
         self.orders_received_df['BookingDate'] = pd.to_datetime(
             self.orders_received_df['BookingDate'],
@@ -16,17 +24,16 @@ class ForecastViewer:
         )
 
         self.monthly_item_sales_quantity = pd.pivot_table(
-            orders_received_df,
+            self.orders_received_df,
             index='ItemNumber',
-            columns=orders_received_df['BookingDate'].dt.to_period('M'),
+            columns=self.orders_received_df['BookingDate'].dt.to_period('M'),
             values='Quantity',
             aggfunc='sum',
             fill_value=0
         )
 
         self.monthly_item_sales_quantity.index.name = 'ItemNumber'
-
-        self.item_numbers = list(self.monthly_item_sales_quantity.index)
+        self.item_numbers = list(self.predictions_df.index)
 
     @staticmethod
     def _to_datetime_index(s: pd.Series) -> pd.Series:
@@ -35,8 +42,8 @@ class ForecastViewer:
             # choose 'start' or 'end' anchor to taste for monthly/quarterly data
             s = s.copy()
             s.index = s.index.to_timestamp(how="start")
-        return s
 
+        return s
 
     def plot(self, item_number = None):
 
@@ -65,7 +72,3 @@ class ForecastViewer:
         ax.legend()
         ax.grid(True, alpha=0.3)
         plt.show()
-
-
-
-

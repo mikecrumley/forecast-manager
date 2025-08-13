@@ -5,3 +5,6 @@ from forecast_manager.src.classes.forecast_manager import ForecasterEvaluation, 
     ManagedMetric, \
     ManagedEvaluator, \
     ForecastManager
+
+from forecast_manager.src.classes.forecast_viewer import ForecastViewer
+

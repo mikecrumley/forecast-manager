@@ -11,9 +11,14 @@ class ForecastViewer:
 
         self.predictions_df.index = self.predictions_df['ItemNumber']
         del self.predictions_df['ItemNumber']
-        # del self.predictions_df['forecaster_class']
-        # del self.predictions_df['forecaster_params']
-        # del self.predictions_df['test_RMSE']
+
+        self.forecaster_classes = self.predictions_df['forecaster_class'].copy()
+        self.forecaster_params = self.predictions_df['forecaster_params'].copy()
+        self.test_RMSE = self.predictions_df['test_RMSE'].copy()
+
+        del self.predictions_df['forecaster_class']
+        del self.predictions_df['forecaster_params']
+        del self.predictions_df['test_RMSE']
 
         self.predictions_df.columns = pd.PeriodIndex(self.predictions_df.columns, freq="M")
 
@@ -66,7 +71,7 @@ class ForecastViewer:
         if len(hist) and len(fcst):
             ax.axvline(hist.index.max(), color="gray", alpha=0.3)
 
-        ax.set_title(item_number)
+        ax.set_title(f'{item_number} {self.forecaster_classes.loc[item_number]} {self.forecaster_params.loc[item_number]} {self.test_RMSE.loc[item_number]}')
         ax.set_ylabel('quantity')
 
         ax.legend()

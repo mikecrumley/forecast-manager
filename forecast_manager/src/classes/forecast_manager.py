@@ -2,6 +2,7 @@ from sktime.forecasting.model_evaluation import evaluate
 import matplotlib.pyplot as plt
 import pandas as pd
 from tqdm import tqdm
+import random as rand
 
 class ForecasterEvaluation:
     def __init__(self, results, managed_evaluator):
@@ -38,16 +39,27 @@ class ManagedForecaster:
             self.fitted_params = None
 
     def evaluate(self, y, X=None, managed_evaluator=None):
-        results = evaluate(
-            forecaster=self.forecaster,
-            y=y,
-            X=X,
-            cv=managed_evaluator.managed_cv.cv,
-            strategy=managed_evaluator.strategy,
-            scoring=[m.metric for m in managed_evaluator.scoring],
-            error_score=managed_evaluator.error_score
-        )
-        evaluation = ForecasterEvaluation(results, managed_evaluator)
+
+        # here is where we should catch any models that fail to evaluate.
+        # we return an evaluation that disqualifies it from
+        # consideration for the best model
+        try:
+            results = evaluate(
+                forecaster=self.forecaster,
+                y=y,
+                X=X,
+                cv=managed_evaluator.managed_cv.cv,
+                strategy=managed_evaluator.strategy,
+                scoring=[m.metric for m in managed_evaluator.scoring],
+                error_score=managed_evaluator.error_score
+            )
+            evaluation = ForecasterEvaluation(results, managed_evaluator)
+
+        except:
+            # If this fails, ForecastManager.summarize_evaluations will
+            # ignore this None value
+            evaluation = None
+
         self.forecaster_evaluations[managed_evaluator.managed_cv.name] = evaluation
 
     def predict(self, fh, X_test=None):
@@ -238,9 +250,11 @@ class ForecastManager:
         exclude_columns = {'fit_time', 'len_train_window', 'pred_time'}
 
         for forecaster in self.managed_forecasters:
+            print('forecaster: ', forecaster)
             row = {
-                'forecaster_class': forecaster.forecaster.__class__.__name__,
-                'init_params': forecaster.init_params
+                'forecaster_name': forecaster.name
+                # 'forecaster_class': forecaster.forecaster.__class__.__name__,
+                # 'init_params': forecaster.init_params
             }
             metrics = {}
             for evaluator in self.managed_evaluators:
@@ -257,7 +271,7 @@ class ForecastManager:
             records.append(row)
             index.append(forecaster.name)
 
-        all_columns = [('forecaster', 'forecaster_class'), ('forecaster', 'init_params')] + sorted(column_keys)
+        all_columns = ['forecaster_name'] + sorted(column_keys)
         df = pd.DataFrame(records, index=index)
         df.columns = pd.MultiIndex.from_tuples(all_columns)
         return df

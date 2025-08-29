@@ -1,5 +1,3 @@
-
-
 class ForecastPortfolio:
     '''A class to perform automatic model selection and forecasting
     for a large number of time series and forecasters.
@@ -52,7 +50,6 @@ class ForecastPortfolio:
 
             return new_s
 
-        # truncated_series_df = self.series_df.loc[indices]
         return_df = S.apply(apply_func)
         return_df.index = indices
         return_df.columns = ['forecaster_name', 'cv_score']
